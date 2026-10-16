@@ -96,3 +96,7 @@ Protected:
 ## License
 
 GPL-2.0-or-later
+
+## Automated release publishing
+
+Version 2.1.0 adds `POST /wp-json/uupd/v1/products/{slug}/release` for publishing releases directly to native UUPD Update posts. See [RELEASE-API.md](RELEASE-API.md) for authentication, fields, deployment script configuration, append/replace semantics, and storage-security limitations.
