@@ -49,6 +49,16 @@ class UUPD_Update_Admin {
             'update',
             [
                 'label'        => __( 'Updates', 'uupd-server' ),
+                'labels'       => [
+                    'name'          => __( 'Updates', 'uupd-server' ),
+                    'singular_name' => __( 'Plugin', 'uupd-server' ),
+                    'add_new'       => __( 'Add Plugin', 'uupd-server' ),
+                    'add_new_item'  => __( 'Add Plugin', 'uupd-server' ),
+                    'edit_item'     => __( 'Edit Plugin', 'uupd-server' ),
+                    'new_item'      => __( 'New Plugin', 'uupd-server' ),
+                    'search_items'  => __( 'Search Plugins', 'uupd-server' ),
+                    'not_found'     => __( 'No plugins found.', 'uupd-server' ),
+                ],
                 'public'       => false,
                 'show_ui'      => true,
                 'show_in_menu' => 'uupd_server',

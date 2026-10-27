@@ -47,6 +47,23 @@ class UUPD_Settings_Page {
             isset( $_POST['uupd_settings_nonce'] )
             && wp_verify_nonce( $_POST['uupd_settings_nonce'], 'uupd_settings_save' )
         ) {
+            update_option( 'uupd_allow_rotate', isset( $_POST['uupd_allow_rotate'] ) ? '1' : '0' );
+            update_option( 'uupd_license_history_enabled', isset( $_POST['uupd_license_history_enabled'] ) ? '1' : '0' );
+            $was_children_enabled = '1' === (string) get_option( 'uupd_allow_children', '0' );
+            $children_enabled = isset( $_POST['uupd_allow_children'] );
+            update_option( 'uupd_allow_children', $children_enabled ? '1' : '0' );
+            if ( isset( $_POST['uupd_max_children'] ) ) {
+                $requested_max = trim( (string) wp_unslash( $_POST['uupd_max_children'] ) );
+                update_option( 'uupd_max_children', '' === $requested_max ? 'auto' : min( 100000, absint( $requested_max ) ) );
+            }
+            if ( $was_children_enabled && ! $children_enabled && ! isset( $_POST['uupd_keep_children_active'] ) ) {
+                $masters = get_posts( array( 'post_type' => 'uupd_license', 'post_status' => 'publish', 'fields' => 'ids', 'posts_per_page' => -1 ) );
+                foreach ( $masters as $master_id ) {
+                    if ( ! get_post_meta( $master_id, 'uupd_parent_license_id', true ) && ! metadata_exists( 'post', $master_id, 'uupd_allow_children' ) ) {
+                        uupd_revoke_all_child_licenses( $master_id );
+                    }
+                }
+            }
             // Bearer key
             if ( isset( $_POST['uupd_bearer_key'] ) ) {
                 update_option(
@@ -97,6 +114,10 @@ class UUPD_Settings_Page {
                 <?php wp_nonce_field( 'uupd_settings_save', 'uupd_settings_nonce' ); ?>
 
                 <table class="form-table" role="presentation">
+                    <tr><th scope="row"><?php esc_html_e( 'Licence interaction history', 'uupd-server' ); ?></th><td><label><input type="checkbox" name="uupd_license_history_enabled" value="1" <?php checked( get_option( 'uupd_license_history_enabled', '0' ), '1' ); ?>> <?php esc_html_e( 'Keep the latest 20 events per licence', 'uupd-server' ); ?></label><p class="description"><?php esc_html_e( 'Records issuance, checks, activations, updates and renewals for fault finding. Keys, domains and full request data are excluded.', 'uupd-server' ); ?></p></td></tr>
+                    <tr><th scope="row"><?php esc_html_e( 'Key rotation', 'uupd-server' ); ?></th><td><label><input type="checkbox" name="uupd_allow_rotate" value="1" <?php checked( get_option( 'uupd_allow_rotate', '1' ), '1' ); ?>> <?php esc_html_e( 'Allow licence key rotation by default', 'uupd-server' ); ?></label></td></tr>
+                    <tr><th scope="row"><?php esc_html_e( 'Child licences', 'uupd-server' ); ?></th><td><label><input type="checkbox" name="uupd_allow_children" value="1" <?php checked( get_option( 'uupd_allow_children', '0' ), '1' ); ?>> <?php esc_html_e( 'Allow child licences by default', 'uupd-server' ); ?></label><p><label><input type="checkbox" name="uupd_keep_children_active" value="1"> <?php esc_html_e( 'Keep existing child keys active if I turn this setting off', 'uupd-server' ); ?></label></p><p class="description"><?php esc_html_e( 'By default, turning child licences off revokes existing children on licences that inherit this setting and releases their activations.', 'uupd-server' ); ?></p></td></tr>
+                    <tr><th scope="row"><label for="uupd_max_children"><?php esc_html_e( 'Default maximum child keys', 'uupd-server' ); ?></label></th><td><input type="number" id="uupd_max_children" name="uupd_max_children" min="0" step="1" value="<?php echo esc_attr( is_numeric( get_option( 'uupd_max_children', 'auto' ) ) ? get_option( 'uupd_max_children', 'auto' ) : '' ); ?>" class="small-text"><p class="description"><?php esc_html_e( 'Leave blank for automatic: the master activation limit, or unlimited when the master has unlimited activations. Any number entered is capped by each master’s activation limit.', 'uupd-server' ); ?></p></td></tr>
 
                     <tr>
                         <th scope="row">

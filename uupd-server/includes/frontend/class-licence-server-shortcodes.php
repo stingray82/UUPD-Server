@@ -36,6 +36,10 @@ function uupd_simple_get_user_licenses( $user_id ) {
                 'value' => (int) $user_id,
                 'type'  => 'NUMERIC',
             ),
+            array(
+                'key' => 'uupd_parent_license_id',
+                'compare' => 'NOT EXISTS',
+            ),
         ),
     );
 
@@ -318,7 +322,7 @@ function uupd_simple_license_activations_shortcode( $atts ) {
     }
 
     // Activation limit (for display only).
-    $limit_meta  = (int) get_post_meta( $license_id, 'activation_limit', true );
+    $limit_meta  = absint( get_post_meta( $license_id, 'uupd_parent_license_id', true ) ) ? uupd_child_activation_limit( $license_id ) : uupd_license_master_limit( $license_id );
     $current     = count( $used_domains );
     $limit_label = $limit_meta > 0
         ? sprintf( '%d / %d', $current, $limit_meta )
@@ -415,6 +419,7 @@ function uupd_simple_license_activations_shortcode( $atts ) {
                         </button>
                     </p>
                 </form>
+                <?php echo uupd_license_keys_shortcode( array( 'license_id' => $license_id ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
             </div>
         </section>
     </div>
@@ -504,7 +509,7 @@ function uupd_simple_license_purchases_shortcode( $atts ) {
                             $license_id   = $license_post->ID;
                             $update_id    = (int) get_post_meta( $license_id, 'update_id', true );
                             $license_key  = (string) get_post_meta( $license_id, 'license_key', true );
-                            $status       = (string) get_post_meta( $license_id, 'status', true );
+                            $status       = uupd_license_is_usable( $license_id ) ? (string) get_post_meta( $license_id, 'status', true ) : 'inactive';
                             $date         = mysql2date( get_option( 'date_format' ), $license_post->post_date );
 
                             $update_post  = $update_id ? get_post( $update_id ) : null;
@@ -554,11 +559,18 @@ function uupd_simple_license_purchases_shortcode( $atts ) {
                                         <br />
                                         <?php echo $activations_html; // phpcs:ignore ?>
                                     <?php endif; ?>
+                                    <?php if ( uupd_license_key_manager_available( $license_id ) ) : ?><br><a href="<?php echo esc_url( add_query_arg( 'uupd_manage_license', $license_id ) . '#uupd-key-manager-' . $license_id ); ?>"><?php echo esc_html( uupd_license_key_manager_label( $license_id ) ); ?></a><?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+                <?php
+                $selected_license = isset( $_GET['uupd_manage_license'] ) ? absint( $_GET['uupd_manage_license'] ) : 0;
+                if ( $selected_license && in_array( $selected_license, array_map( function ( $item ) { return (int) $item->ID; }, $licenses ), true ) ) {
+                    echo uupd_license_keys_shortcode( array( 'license_id' => $selected_license ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+                }
+                ?>
             </div>
         </section>
     </div>
@@ -770,6 +782,7 @@ function uupd_simple_purchase_confirmation_shortcode( $atts ) {
                         </dd>
                     </div>
                 </dl>
+                <?php echo uupd_license_keys_shortcode( array( 'license_id' => $license_id ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
             </div>
         </section>
 

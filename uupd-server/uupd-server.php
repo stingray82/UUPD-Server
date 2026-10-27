@@ -2,7 +2,7 @@
 /**
  * Plugin Name:     UUPD Server
  * Description:     Provides a custom post type and secure file download or remote redirect for Universal Updater (UUPD_Updater), with licensing, multiple packages, and multiple files per update.
- * Version:         2.1.0
+ * Version:         2.2.0
  * Author:          Stingray82
  * Text Domain:     uupd-server
  */
@@ -38,6 +38,7 @@ require_once UUPD_SERVER_DIR . 'includes/frontend/class-uupd-legacy-endpoints.ph
 
 // Frontend ShortCodes
 require_once UUPD_SERVER_DIR . 'includes/frontend/class-licence-server-shortcodes.php';
+require_once UUPD_SERVER_DIR . 'includes/frontend/class-uupd-license-keys.php';
 
 
 // Settings page

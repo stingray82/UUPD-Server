@@ -166,7 +166,8 @@ class UUPD_REST_Licenses {
             return true;
         }
 
-        $expiry = get_post_meta( $license_id, 'expiry', true );
+        $parent_id = absint( get_post_meta( $license_id, 'uupd_parent_license_id', true ) );
+        $expiry = get_post_meta( $parent_id ?: $license_id, 'expiry', true );
         if ( empty( $expiry ) ) {
             return false; // lifetime
         }
@@ -177,7 +178,7 @@ class UUPD_REST_Licenses {
         }
 
         if ( time() > $ts ) {
-            if ( $status === 'active' ) {
+            if ( ! $parent_id && $status === 'active' ) {
                 update_post_meta( $license_id, 'status', 'expired' );
             }
             return true;
@@ -245,6 +246,7 @@ class UUPD_REST_Licenses {
 
         // Explicit expired
         if ( $status === 'expired' ) {
+            uupd_record_license_interaction( $license->ID, 'check_rejected', array( 'reason' => 'expired', 'source' => 'rest' ) );
             return [
                 'success' => false,
                 'message' => 'License expired',
@@ -252,7 +254,8 @@ class UUPD_REST_Licenses {
             ];
         }
 
-        if ( $status !== 'active' ) {
+        if ( $status !== 'active' || ! uupd_license_is_usable( $license->ID ) ) {
+            uupd_record_license_interaction( $license->ID, 'check_rejected', array( 'reason' => 'inactive', 'status' => $status, 'source' => 'rest' ) );
             return [
                 'success' => false,
                 'message' => 'License not active',
@@ -262,6 +265,7 @@ class UUPD_REST_Licenses {
 
         // Date-based expiry
         if ( $this->license_is_expired( $license->ID ) ) {
+            uupd_record_license_interaction( $license->ID, 'check_rejected', array( 'reason' => 'date_expired', 'source' => 'rest' ) );
             return [
                 'success' => false,
                 'message' => 'License expired',
@@ -269,43 +273,46 @@ class UUPD_REST_Licenses {
             ];
         }
 
-        $update_id   = intval( get_post_meta( $license->ID, 'update_id', true ) );
+        $master_id   = uupd_license_master_id( $license->ID );
+        $update_id   = intval( get_post_meta( $master_id, 'update_id', true ) );
         $update_slug = get_post_meta( $update_id, 'slug', true );
 
         if ( $slug !== $update_slug ) {
+            uupd_record_license_interaction( $license->ID, 'check_rejected', array( 'reason' => 'product_mismatch', 'source' => 'rest' ) );
             return [
                 'success' => false,
                 'message' => 'License not valid for this product',
             ];
         }
 
-        $package_id = get_post_meta( $license->ID, 'package_id', true );
-        $limit      = intval( get_post_meta( $license->ID, 'activation_limit', true ) );
-
-        if ( ! $limit ) {
-            $packages = get_post_meta( $update_id, 'packages', true );
-            if ( is_array( $packages ) ) {
-                foreach ( $packages as $p ) {
-                    if ( isset( $p['id'] ) && $p['id'] === $package_id ) {
-                        $limit = intval( $p['activation_limit'] ?? 0 );
-                        break;
-                    }
-                }
-            }
-        }
+        $master_limit = uupd_license_master_limit( $master_id );
+        $limit = $master_id === $license->ID ? $master_limit : uupd_child_activation_limit( $license->ID );
 
         $used_domains = get_post_meta( $license->ID, 'used_domains', true );
         if ( ! is_array( $used_domains ) ) {
             $used_domains = [];
         }
 
+        // Child checks for a named site must use an active child connection.
+        if ( $master_id !== $license->ID && $domain && ! in_array( $domain, $used_domains, true ) ) {
+            uupd_record_license_interaction( $license->ID, 'check_rejected', array( 'reason' => 'site_inactive', 'source' => 'rest' ) );
+            return [
+                'success' => false,
+                'message' => 'Site not activated for this child key',
+                'domain_active' => false,
+            ];
+        }
+
         $activations = count( $used_domains );
 
+        uupd_record_license_interaction( $license->ID, 'check_succeeded', array( 'result' => 'valid', 'source' => 'rest' ) );
         return [
             'success'          => true,
             'status'           => $status,
             'activations'      => $activations,
             'activation_limit' => $limit,
+            'master_activations' => uupd_license_family_usage( $master_id ),
+            'master_activation_limit' => $master_limit,
             'domain_active'    => (bool) ( $domain && in_array( $domain, $used_domains, true ) ),
         ];
     }
@@ -350,7 +357,7 @@ class UUPD_REST_Licenses {
             ];
         }
 
-        if ( $status !== 'active' ) {
+        if ( $status !== 'active' || ! uupd_license_is_usable( $license->ID ) ) {
             return [
                 'success' => false,
                 'message' => 'License not active',
@@ -364,7 +371,8 @@ class UUPD_REST_Licenses {
             ];
         }
 
-        $update_id   = intval( get_post_meta( $license->ID, 'update_id', true ) );
+        $master_id   = uupd_license_master_id( $license->ID );
+        $update_id   = intval( get_post_meta( $master_id, 'update_id', true ) );
         $update_slug = get_post_meta( $update_id, 'slug', true );
 
         if ( $slug !== $update_slug ) {
@@ -387,20 +395,8 @@ class UUPD_REST_Licenses {
             ];
         }
 
-        $package_id = get_post_meta( $license->ID, 'package_id', true );
-        $limit      = intval( get_post_meta( $license->ID, 'activation_limit', true ) );
-
-        if ( ! $limit ) {
-            $packages = get_post_meta( $update_id, 'packages', true );
-            if ( is_array( $packages ) ) {
-                foreach ( $packages as $p ) {
-                    if ( isset( $p['id'] ) && $p['id'] === $package_id ) {
-                        $limit = intval( $p['activation_limit'] ?? 0 );
-                        break;
-                    }
-                }
-            }
-        }
+        $master_limit = uupd_license_master_limit( $master_id );
+        $limit = $master_id === $license->ID ? $master_limit : uupd_child_activation_limit( $license->ID );
 
         if ( $limit && count( $used_domains ) >= $limit ) {
             return [
@@ -408,9 +404,13 @@ class UUPD_REST_Licenses {
                 'message' => 'Activation limit reached',
             ];
         }
+        if ( $master_limit && uupd_license_family_usage( $master_id ) >= $master_limit ) {
+            return [ 'success' => false, 'message' => 'Master activation limit reached' ];
+        }
 
         $used_domains[] = $domain;
         update_post_meta( $license->ID, 'used_domains', $used_domains );
+        uupd_record_license_interaction( $license->ID, 'activated', array( 'result' => 'success', 'source' => 'rest' ) );
 
         return [
             'success'     => true,
@@ -456,6 +456,7 @@ class UUPD_REST_Licenses {
 
         $used_domains = array_values( array_diff( $used_domains, [ $domain ] ) );
         update_post_meta( $license->ID, 'used_domains', $used_domains );
+        uupd_record_license_interaction( $license->ID, 'deactivated', array( 'result' => 'success', 'source' => 'rest' ) );
 
         return [
             'success'     => true,
@@ -531,6 +532,7 @@ class UUPD_REST_Licenses {
         update_post_meta( $post_id, 'activation_limit', $limit );
         update_post_meta( $post_id, 'expiry',           $expiry );
         update_post_meta( $post_id, 'order_id',         $order_id ); // NEW
+        uupd_record_license_interaction( $post_id, 'created', array( 'order_id' => $order_id, 'source' => 'rest' ) );
 
         return [
             'success'     => true,
@@ -680,6 +682,7 @@ class UUPD_REST_Licenses {
         }
 
         update_post_meta( $license->ID, 'status', 'suspended' );
+        uupd_record_license_interaction( $license->ID, 'suspended', array( 'source' => 'rest' ) );
 
         return [
             'success' => true,

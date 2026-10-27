@@ -117,6 +117,15 @@ class UUPD_Legacy_Endpoints {
             $meta['download_url']     = '';
             wp_send_json( $meta );
         }
+        if ( $licensed_product ) {
+            $license = uupd_get_license_by_key( $key );
+            if ( ! $license || absint( get_post_meta( uupd_license_master_id( $license->ID ), 'update_id', true ) ) !== $post->ID || ! uupd_license_is_usable( $license->ID ) ) {
+                $meta['license_required'] = true;
+                $meta['license_status'] = 'inactive';
+                $meta['download_url'] = '';
+                wp_send_json( $meta );
+            }
+        }
 
         // Get primary file (first in "files" array)
         $files   = get_post_meta( $post->ID, 'files', true );
@@ -203,6 +212,13 @@ class UUPD_Legacy_Endpoints {
         }
 
         $post   = $posts[0];
+        if ( get_post_meta( $post->ID, 'licensed_product', true ) ) {
+            $key = isset( $_GET['key'] ) ? sanitize_text_field( wp_unslash( $_GET['key'] ) ) : '';
+            $license = uupd_get_license_by_key( $key );
+            if ( ! $license || absint( get_post_meta( uupd_license_master_id( $license->ID ), 'update_id', true ) ) !== $post->ID || ! uupd_license_is_usable( $license->ID ) ) {
+                wp_die( 'Licence inactive', 403 );
+            }
+        }
         $remote = get_post_meta( $post->ID, 'remote_url', true );
 
         // If remote URL is set, redirect immediately
