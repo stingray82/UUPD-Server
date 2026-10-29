@@ -48,6 +48,7 @@ class UUPD_Settings_Page {
             && wp_verify_nonce( $_POST['uupd_settings_nonce'], 'uupd_settings_save' )
         ) {
             update_option( 'uupd_allow_rotate', isset( $_POST['uupd_allow_rotate'] ) ? '1' : '0' );
+            update_option( 'uupd_allow_query_license_key', isset( $_POST['uupd_allow_query_license_key'] ) ? '1' : '0' );
             update_option( 'uupd_license_history_enabled', isset( $_POST['uupd_license_history_enabled'] ) ? '1' : '0' );
             $was_children_enabled = '1' === (string) get_option( 'uupd_allow_children', '0' );
             $children_enabled = isset( $_POST['uupd_allow_children'] );
@@ -114,6 +115,7 @@ class UUPD_Settings_Page {
                 <?php wp_nonce_field( 'uupd_settings_save', 'uupd_settings_nonce' ); ?>
 
                 <table class="form-table" role="presentation">
+                    <tr><th scope="row"><?php esc_html_e( 'Legacy metadata query-key transport', 'uupd-server' ); ?></th><td><label><input type="checkbox" name="uupd_allow_query_license_key" value="1" <?php checked( get_option( 'uupd_allow_query_license_key', '1' ), '1' ); ?>> <?php esc_html_e( 'Accept licence keys from the metadata key query parameter', 'uupd-server' ); ?></label><p class="description"><?php esc_html_e( 'Disable after clients use Authorization: Bearer. This setting also applies to installed UUPD compatibility metadata adapters. Define UUPD_ALLOW_QUERY_LICENSE_KEY as false in wp-config.php to force query keys off.', 'uupd-server' ); ?></p></td></tr>
                     <tr><th scope="row"><?php esc_html_e( 'Licence interaction history', 'uupd-server' ); ?></th><td><label><input type="checkbox" name="uupd_license_history_enabled" value="1" <?php checked( get_option( 'uupd_license_history_enabled', '0' ), '1' ); ?>> <?php esc_html_e( 'Keep the latest 20 events per licence', 'uupd-server' ); ?></label><p class="description"><?php esc_html_e( 'Records issuance, checks, activations, updates and renewals for fault finding. Keys, domains and full request data are excluded.', 'uupd-server' ); ?></p></td></tr>
                     <tr><th scope="row"><?php esc_html_e( 'Key rotation', 'uupd-server' ); ?></th><td><label><input type="checkbox" name="uupd_allow_rotate" value="1" <?php checked( get_option( 'uupd_allow_rotate', '1' ), '1' ); ?>> <?php esc_html_e( 'Allow licence key rotation by default', 'uupd-server' ); ?></label></td></tr>
                     <tr><th scope="row"><?php esc_html_e( 'Child licences', 'uupd-server' ); ?></th><td><label><input type="checkbox" name="uupd_allow_children" value="1" <?php checked( get_option( 'uupd_allow_children', '0' ), '1' ); ?>> <?php esc_html_e( 'Allow child licences by default', 'uupd-server' ); ?></label><p><label><input type="checkbox" name="uupd_keep_children_active" value="1"> <?php esc_html_e( 'Keep existing child keys active if I turn this setting off', 'uupd-server' ); ?></label></p><p class="description"><?php esc_html_e( 'By default, turning child licences off revokes existing children on licences that inherit this setting and releases their activations.', 'uupd-server' ); ?></p></td></tr>
@@ -190,7 +192,7 @@ class UUPD_Settings_Page {
                                    class="regular-text code"
                                    placeholder="/inc/updater.php" />
                             <p class="description">
-                                <?php esc_html_e( 'Relative path from the plugin main file to updater.php. Used in the generated loader snippet.', 'uupd-server' ); ?>
+                                <?php esc_html_e( 'Relative path from the plugin main file to updater.php. Use UUPD updater version 2.2.0 or newer for the generated Authorization: Bearer transport.', 'uupd-server' ); ?>
                             </p>
                         </td>
                     </tr>

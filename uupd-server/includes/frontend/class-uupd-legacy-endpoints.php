@@ -50,9 +50,7 @@ class UUPD_Legacy_Endpoints {
             ? sanitize_text_field( wp_unslash( $_GET['slug'] ) )
             : '';
 
-        $key  = isset( $_GET['key'] )
-            ? sanitize_text_field( wp_unslash( $_GET['key'] ) )
-            : '';
+        $key  = $this->get_metadata_license_key();
 
         // Determine domain
         if ( ! empty( $_GET['domain'] ) ) {
@@ -165,6 +163,25 @@ class UUPD_Legacy_Endpoints {
         }
 
         wp_send_json( $meta );
+    }
+
+    /** Read the v2.2 Bearer credential, falling back to the legacy query key. */
+    private function get_metadata_license_key() {
+        $authorization = isset( $_SERVER['HTTP_AUTHORIZATION'] ) ? wp_unslash( $_SERVER['HTTP_AUTHORIZATION'] ) : '';
+        if ( '' === $authorization && function_exists( 'getallheaders' ) ) {
+            $headers = getallheaders();
+            $authorization = is_array( $headers ) && isset( $headers['Authorization'] ) ? $headers['Authorization'] : '';
+        }
+        if ( preg_match( '/^Bearer\s+(.+)$/i', trim( (string) $authorization ), $matches ) ) {
+            return sanitize_text_field( trim( $matches[1] ) );
+        }
+        $allow_query_key = defined( 'UUPD_ALLOW_QUERY_LICENSE_KEY' )
+            ? (bool) UUPD_ALLOW_QUERY_LICENSE_KEY
+            : ( '1' === (string) get_option( 'uupd_allow_query_license_key', '1' ) );
+        if ( ! $allow_query_key ) {
+            return '';
+        }
+        return isset( $_GET['key'] ) ? sanitize_text_field( wp_unslash( $_GET['key'] ) ) : '';
     }
 
     /* -------------------------------------------------------------------------

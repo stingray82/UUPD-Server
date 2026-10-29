@@ -503,6 +503,8 @@ class UUPD_Update_Admin {
 	" .
 	"        'server'      => '',
 	" .
+	"        'license_key_transport' => 'header',
+	" .
 	"    ]);
 	" .
 	"}, 1 );";
