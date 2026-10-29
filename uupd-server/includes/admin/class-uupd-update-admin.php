@@ -546,7 +546,7 @@ class UUPD_Update_Admin {
 	            return;
 	        }
 
-	        $inline_code = "<?php \$inst = \\UUPD\\UI\\License\\V1\\UUPD_License_UI::get_instance( {$const_base}_VENDOR, {$const_base}_SLUG ); if ( \$inst ) { \$inst->render_page(); } ?>";
+	        $inline_code = "<?php \UUPD\\UI\\License\\V1\\UUPD_License_UI::render_box_for( {$const_base}_SLUG, {$const_base}_VENDOR ); ?>";
 
 	        echo '<button class="button uupd-copy-loader" data-code="' . esc_attr( $inline_code ) . '">' .
 	            esc_html__( 'Copy inline box', 'uupd-server' ) .
