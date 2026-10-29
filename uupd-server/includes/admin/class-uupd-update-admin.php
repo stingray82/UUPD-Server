@@ -113,6 +113,7 @@ class UUPD_Update_Admin {
         $loader_page_title    = $m['loader_page_title'][0] ?? '';
         $loader_menu_title    = $m['loader_menu_title'][0] ?? '';
         $loader_parent_slug   = $m['loader_parent_slug'][0] ?? '';
+        $loader_return_path   = $m['loader_return_path'][0] ?? '';
         $loader_inline_box    = ! empty( $m['loader_inline_box'][0] );
 
         // Packages + Files
@@ -192,6 +193,7 @@ class UUPD_Update_Admin {
             'loader_page_title',
             'loader_menu_title',
             'loader_parent_slug',
+            'loader_return_path',
         ];
 
         foreach ( $loader_fields as $f ) {
@@ -388,6 +390,7 @@ class UUPD_Update_Admin {
 	    $loader_page_title    = get_post_meta( $post_id, 'loader_page_title', true ) ?: ( $friendly . ' License' );
 	    $loader_menu_title    = get_post_meta( $post_id, 'loader_menu_title', true ) ?: __( 'License', 'uupd-server' );
 	    $loader_parent_slug   = get_post_meta( $post_id, 'loader_parent_slug', true );
+	    $loader_return_path   = get_post_meta( $post_id, 'loader_return_path', true );
 	    $inline_enabled       = (bool) get_post_meta( $post_id, 'loader_inline_box', true );
 
 	    $vendor   = $this->get_global_vendor();
@@ -398,6 +401,7 @@ class UUPD_Update_Admin {
 
 	    // Default generated menu slug
 	    $default_menu_slug = $vendor . '-' . $slug;
+	    $effective_menu_slug = sanitize_key( $loader_menu_slug ?: $default_menu_slug );
 
 	    // Convert menu location → literal
 	    switch ( $loader_menu_location ) {
@@ -408,7 +412,7 @@ class UUPD_Update_Admin {
 	            $parent = "'tools.php'";
 	            break;
 	        case 'custom_parent':
-	            $parent = "'" . esc_attr( $loader_parent_slug ) . "'";
+	            $parent = var_export( sanitize_text_field( $loader_parent_slug ), true );
 	            break;
 	        case 'none':
 	            $parent = "false";
@@ -416,6 +420,17 @@ class UUPD_Update_Admin {
 	        default:
 	            $parent = "'options-general.php'";
 	            break;
+	    }
+
+	    // Embedded licence pages require an explicit registered WP admin path.
+	    $return_config = '';
+	    if ( 'none' === $loader_menu_location ) {
+	        $path = ltrim( trim( (string) $loader_return_path ), '/' );
+	        if ( preg_match( '~^(?:admin|options-general|tools|themes|plugins|users|index|upload|edit)\.php\?page=[a-zA-Z0-9_-]+(?:\#[a-zA-Z0-9_-]+)?$~', $path ) ) {
+	            $return_config = "        'return_url'     => admin_url( " . var_export( $path, true ) . " ),\n";
+	        } else {
+	            $return_config = "        // ERROR: Embedded licence page requires a valid return path in UUPD Server.\n";
+	        }
 	    }
 
 	    // Loader include paths from settings
@@ -430,6 +445,14 @@ class UUPD_Update_Admin {
 	    }
 
 	    if ( $col === 'uupd_loader' ) {
+	        if ( 'none' === $loader_menu_location && '' === trim( $loader_return_path ) ) {
+	            echo '<span style="color:#b32d2e">Set the existing settings page return path before copying the loader.</span>';
+	            return;
+	        }
+	        if ( 'none' === $loader_menu_location && '' === $return_config || ( 'none' === $loader_menu_location && strpos( $return_config, '// ERROR:' ) !== false ) ) {
+	            echo '<span style="color:#b32d2e">Invalid admin return path. Use admin.php?page=your-page-slug (or a standard WP admin page).</span>';
+	            return;
+	        }
 
 	        $code =
 	"define( '{$const_base}_VENDOR', '{$vendor}' );
@@ -448,7 +471,7 @@ class UUPD_Update_Admin {
 	" .
 	"define( '{$const_base}_SERVER_BASE', '{$server}' );
 	" .
-	"define( '{$const_base}_MENU_SLUG', {$const_base}_VENDOR . '-' . {$const_base}_SLUG );
+	"define( '{$const_base}_MENU_SLUG', '{$effective_menu_slug}' );
 
 	" .
 	"add_action( 'plugins_loaded', function() {
@@ -476,6 +499,7 @@ class UUPD_Update_Admin {
 	" .
 	"        'menu_slug'      => {$const_base}_MENU_SLUG,
 	" .
+	$return_config .
 	"        'page_title'     => '{$loader_page_title}',
 	" .
 	"        'menu_title'     => '{$loader_menu_title}',

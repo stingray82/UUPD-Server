@@ -97,7 +97,7 @@
                 <option value="tools"        <?php selected( $loader_menu_location, 'tools' ); ?>       >Tools</option>
                 <option value="top_level"    <?php selected( $loader_menu_location, 'top_level' ); ?>   >Top-level menu</option>
                 <option value="custom_parent"<?php selected( $loader_menu_location, 'custom_parent' ); ?>>Custom parent</option>
-                <option value="none"         <?php selected( $loader_menu_location, 'none' ); ?>        >No menu (inline only)</option>
+                <option value="none"         <?php selected( $loader_menu_location, 'none' ); ?>        >Existing admin page (embedded; no menu)</option>
             </select>
         </td>
     </tr>
@@ -114,7 +114,17 @@
         </td>
     </tr>
 
-    <tr>
+    <tr id="uupd_loader_return_path_row" style="<?php echo $loader_menu_location === 'none' ? '' : 'display:none;'; ?>">
+        <th><label for="uupd_loader_return_path"><?php esc_html_e( 'Existing settings page return path', 'uupd-server' ); ?></label></th>
+        <td>
+            <input type="text" id="uupd_loader_return_path" name="uupd_loader_return_path"
+                   value="<?php echo esc_attr( $loader_return_path ); ?>" class="regular-text"
+                   placeholder="admin.php?page=esp-example-setting-page#esp-licence">
+            <p class="description">Required for No menu: enter the existing registered WordPress admin page path. Include a page slug. The generated loader uses admin_url() and embeds it as return_url.</p>
+        </td>
+    </tr>
+
+    <tr id="uupd_loader_menu_slug_row">
         <th><label for="uupd_loader_menu_slug"><?php esc_html_e( 'Menu slug', 'uupd-server' ); ?></label></th>
         <td>
             <input type="text"
@@ -126,7 +136,7 @@
         </td>
     </tr>
 
-    <tr>
+    <tr class="uupd_loader_new_menu_row">
         <th><label for="uupd_loader_page_title"><?php esc_html_e( 'Page title', 'uupd-server' ); ?></label></th>
         <td>
             <input type="text"
@@ -138,7 +148,7 @@
         </td>
     </tr>
 
-    <tr>
+    <tr class="uupd_loader_new_menu_row">
         <th><label for="uupd_loader_menu_title"><?php esc_html_e( 'Menu title', 'uupd-server' ); ?></label></th>
         <td>
             <input type="text"
@@ -304,7 +314,12 @@
 <script>
 (function($){
     function toggleParentSlug(){
-        if ($('#uupd_loader_menu_location').val() === 'custom_parent') {
+        var location = $('#uupd_loader_menu_location').val();
+        $('#uupd_loader_return_path_row').toggle(location === 'none');
+        $('#uupd_loader_return_path').prop('required', location === 'none');
+        $('.uupd_loader_new_menu_row').toggle(location !== 'none');
+        $('#uupd_loader_menu_slug_row').toggle(location !== 'none');
+        if (location === 'custom_parent') {
             $('#uupd_loader_parent_slug_row').show();
         } else {
             $('#uupd_loader_parent_slug_row').hide();
