@@ -56,10 +56,10 @@ final class UUPD_REST_Releases {
             return new WP_Error( 'uupd_release_package_url', 'package_url must be a valid HTTPS URL.', [ 'status' => 400 ] );
         }
         $lock = 'uupd_release_lock_' . $post->ID;
-        if ( get_transient( $lock ) ) {
+        if ( ! add_option( $lock, time(), '', 'no' ) ) {
+            // Fail closed on stale locks: deleting requires an explicit administrator action.
             return new WP_Error( 'uupd_release_busy', 'A release for this product is already running.', [ 'status' => 409 ] );
         }
-        set_transient( $lock, 1, 5 * MINUTE_IN_SECONDS );
         try {
             $attachment_id = 0;
             if ( $uploaded ) {
@@ -131,7 +131,7 @@ final class UUPD_REST_Releases {
                 'package' => true, 'last_updated' => get_post_meta( $post->ID, 'last_updated', true ),
             ], 200 );
         } finally {
-            delete_transient( $lock );
+            delete_option( $lock );
         }
     }
 }
